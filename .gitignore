@@ -1,0 +1,47 @@
+# Ignore Maven target directory
+/target/
+**/*.jar
+**/*.war
+
+# Ignore IDE-specific files
+/.idea/
+/.vscode/
+/*.iml
+
+# Ignore logs and temp files
+/logs/
+/*.log
+*.swp
+*.swo
+
+.project
+.classpath
+.settings/
+/build/
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore configuration and secrets
+/src/main/resources/*.properties
+/src/main/resources/*.yml
+/src/main/resources/*.yaml
+
+# Ignore generated files
+/.mvn/
+/mvnw
+/mvnw.cmd
+
+# Ignore compiled class files
+/target/classes/
+/target/test-classes/
+/bin/
+/out/
+
+# Ignore Tomcat & Jetty specific files
+/.tomcat/
+/.jetty/
+
+# Ignore uploaded files (e.g., images)
+src/main/webapp/uploads/
