@@ -38,7 +38,8 @@ public class DatabaseConnectionManager {
     }
 
     private static DatabaseConnectionManager createInstance() {
-        try (InputStream input = DatabaseConnectionManager.class.getClassLoader()
+       
+    	try (InputStream input = DatabaseConnectionManager.class.getClassLoader()
                 .getResourceAsStream("config.properties")) {
             
             if (input == null) {

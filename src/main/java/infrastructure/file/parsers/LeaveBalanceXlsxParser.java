@@ -58,7 +58,7 @@ public class LeaveBalanceXlsxParser extends AbstractDataParser<LeaveBalance> {
             return new LeaveBalance(
                 getStringValue(row, 0), // EMP_ID
                 getStringValue(row, 3), // LEAVE_TYPE
-                getFloatValue(row, 6) // LEAVE_DAYS
+                getFloatValue(row, 9)  // BALANCE_LEAVE
             );
         } catch (IndexOutOfBoundsException e) {
             throw new DataParseException("Missing required fields", e);

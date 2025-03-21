@@ -20,7 +20,8 @@ public class LeaveRequestXlsxParser extends AbstractDataParser<LeaveRequest> {
 
 	@Override
 	public List<LeaveRequest> parse(File file) throws DataParseException {
-		List<LeaveRequest> leaveRequests = new ArrayList<>();
+		List<LeaveRequest> leaveRequests = new ArrayList<>(); // to avoid duplicate rows across multiple files (if any), use a Set instead
+		
 
 		try (FileInputStream fis = new FileInputStream(file); Workbook workbook = new XSSFWorkbook(fis)) {
 
@@ -55,7 +56,7 @@ public class LeaveRequestXlsxParser extends AbstractDataParser<LeaveRequest> {
 					getDateValue(row, 4), // LEAVE_START_DATE
 					getDateValue(row, 5), // LEAVE_END_DATE
 					getFloatValue(row, 6), // LEAVE_DAYS
-					LeaveStatus.valueOf(getStringValue(row, 7)), // LEAVE_STATUS)
+					LeaveStatus.fromString(getStringValue(row, 7)), // LEAVE_STATUS
 					getStringValue(row, 8) // REMARKS
 			);
 		} catch (IndexOutOfBoundsException e) {

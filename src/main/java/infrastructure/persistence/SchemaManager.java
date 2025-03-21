@@ -3,16 +3,20 @@ package infrastructure.persistence;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.logging.Logger;
 
 public class SchemaManager {
+	
     private static final Logger LOGGER = Logger.getLogger(SchemaManager.class.getName());
-    private static final String SCHEMA_FILE = "/schema.sql";
+    private static String SCHEMA_FILE = "leave_management_schema.sql";
 
-    public static void initializeSchema() {
+    public static void initializeSchema(String schemaPath) {
+    	
+//    	SCHEMA_FILE = schemaPath.toString();
         try (Connection conn = DatabaseConnectionManager.getInstance().getConnection();
              Statement stmt = conn.createStatement()) {
             
@@ -27,8 +31,10 @@ public class SchemaManager {
     }
 
     private static String loadSchemaFile() throws IOException {
+    	
         try (InputStream inputStream = SchemaManager.class.getResourceAsStream(SCHEMA_FILE)) {
-            if (inputStream == null) {
+            
+        	if (inputStream == null) {
                 throw new IOException("Schema file not found: " + SCHEMA_FILE);
             }
             return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);

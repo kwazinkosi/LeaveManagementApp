@@ -14,8 +14,18 @@ import java.util.List;
 
 public class LeaveTypeXlsxParser extends AbstractDataParser<LeaveType> {
 
-	private enum LEVETYPE {
-		ANNUAL, SICK, UNPAID
+	private enum LEAVETYPE {
+		SICK(10), CASUAL(12), PAID(15);
+
+		private final int value;
+
+		LEAVETYPE(int value) {
+			this.value = value;
+		}
+
+		public int getValue() {
+			return value;
+		}
 	};
 
 	private static final String[] EXPECTED_HEADERS = { "EMP_ID", "EMP_NAME", "DEPARTMENT", "LEAVE_TYPE",
@@ -53,15 +63,20 @@ public class LeaveTypeXlsxParser extends AbstractDataParser<LeaveType> {
 	@Override
 	protected LeaveType parseRow(Row row) throws DataParseException {
 
-		// Random leaveTypeId
-		int leaveTypeId = LEVETYPE.valueOf(getStringValue(row, 3).toUpperCase()).ordinal();
-
 		try {
+			int leaveTypeId = 1;
+			
+			int leaveTypeValue = LEAVETYPE.valueOf(getStringValue(row, 3).toUpperCase()).getValue();
+			if (leaveTypeValue == 12) {
+				leaveTypeId =2;
+			}else if (leaveTypeValue == 15) {
+				leaveTypeId = 3;
+			}
 			return new LeaveType(
 
 					leaveTypeId, // LEAVE_TYPE ID
 					getStringValue(row, 3), // LEAVE_TYPE NAME
-					0 // DEFAULT
+					leaveTypeValue // DEFAULT BALANCE
 			);
 		} catch (IndexOutOfBoundsException e) {
 			throw new DataParseException("Missing required fields", e);

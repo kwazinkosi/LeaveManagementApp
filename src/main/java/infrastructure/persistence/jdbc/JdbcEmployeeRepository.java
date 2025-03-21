@@ -6,11 +6,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.logging.Logger;
 
+import common.exception.DataPersistenceException;
 import domain.model.Employee;
 import domain.repository.IEmployeeRepository;
+import domain.repository.IRepository;
 import infrastructure.persistence.DatabaseConnectionManager;
 
-public class JdbcEmployeeRepository implements IEmployeeRepository {
+public class JdbcEmployeeRepository implements IEmployeeRepository, IRepository<Employee> {
     
 	private static final Logger LOGGER = Logger.getLogger(JdbcEmployeeRepository.class.getName());
     private final DatabaseConnectionManager connectionManager;
@@ -22,7 +24,7 @@ public class JdbcEmployeeRepository implements IEmployeeRepository {
     @Override
     public Optional<Employee> findById(String employeeId) {
         
-    	String sql = "SELECT employee_id, employee_name, department FROM employees WHERE employee_id = ?";
+    	String sql = "SELECT emp_id, emp_name, department FROM employees WHERE emp_id = ?";
         try (Connection conn = connectionManager.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
@@ -30,8 +32,8 @@ public class JdbcEmployeeRepository implements IEmployeeRepository {
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     return Optional.of(new Employee(
-                        rs.getString("employee_id"),
-                        rs.getString("employee_name"),
+                        rs.getString("emp_id"),
+                        rs.getString("emp_name"),
                         rs.getString("department")
                     ));
                 }
@@ -47,15 +49,15 @@ public class JdbcEmployeeRepository implements IEmployeeRepository {
     public List<Employee> findAll() {
         
     	List<Employee> employees = new ArrayList<>();
-        String sql = "SELECT employee_id, employee_name, department FROM employees";
+        String sql = "SELECT emp_id, emp_name, department FROM employees";
         try (Connection conn = connectionManager.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             
             while (rs.next()) {
                 employees.add(new Employee(
-                    rs.getString("employee_id"),
-                    rs.getString("employee_name"),
+                    rs.getString("emp_id"),
+                    rs.getString("emp_name"),
                     rs.getString("department")
                 ));
             }
@@ -69,9 +71,7 @@ public class JdbcEmployeeRepository implements IEmployeeRepository {
     @Override
     public void save(Employee employee) {
         
-    	String sql = "INSERT INTO employees (employee_id, employee_name, department) " +
-                     "VALUES (?, ?, ?) " +
-                     "ON DUPLICATE KEY UPDATE employee_name = ?, department = ?";   
+    	String sql = "INSERT INTO employees (emp_id, emp_name, department) VALUES (?, ?, ?) ON CONFLICT (emp_id) DO UPDATE SET emp_name = ?, department = ?";   
         try (Connection conn = connectionManager.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
@@ -82,7 +82,6 @@ public class JdbcEmployeeRepository implements IEmployeeRepository {
             stmt.setString(5, employee.getDepartment());
             
             stmt.executeUpdate();
-            LOGGER.info("Employee saved: " + employee.getEmpId());
         } catch (SQLException e) {
             LOGGER.severe("Error saving employee: " + e.getMessage());
         }
@@ -91,11 +90,11 @@ public class JdbcEmployeeRepository implements IEmployeeRepository {
     @Override
     public boolean existsById(String employeeId) {
         
-    	String sql = "SELECT 1 FROM employees WHERE employee_id = ?";
+    	String sql = "SELECT 1 FROM employees WHERE emp_id = ?";
         try (Connection conn = connectionManager.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
-            stmt.setString(1, employeeId);
+            stmt.setString(1, employeeId.toUpperCase());
             try (ResultSet rs = stmt.executeQuery()) {
                 return rs.next();
             }
@@ -105,4 +104,19 @@ public class JdbcEmployeeRepository implements IEmployeeRepository {
         
         return false;
     }
+
+	@Override
+	public void saveAll(List<Employee> entities) throws DataPersistenceException  {
+		
+		try (Connection conn = connectionManager.getConnection()) {
+			conn.setAutoCommit(false);
+			for (Employee employee : entities) {
+				save(employee);
+			}
+			conn.commit();
+			conn.setAutoCommit(true); 
+        } catch (SQLException e) {
+            throw new DataPersistenceException("Failed to save leave types", e);
+        }
+	}
 }

@@ -8,7 +8,7 @@ public class Employee {
     private final String department;
 
     public Employee(String id, String name, String department) {
-        this.empId = id;
+        this.empId = id.toUpperCase();
         this.name = name;
         this.department = department;
     }

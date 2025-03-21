@@ -5,11 +5,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.logging.Logger;
 
+import common.exception.DataPersistenceException;
 import domain.model.LeaveBalance;
 import domain.repository.ILeaveBalanceRepository;
+import domain.repository.IRepository;
 import infrastructure.persistence.DatabaseConnectionManager;
 
-public class JdbcLeaveBalanceRepository implements ILeaveBalanceRepository {
+public class JdbcLeaveBalanceRepository implements ILeaveBalanceRepository, IRepository<LeaveBalance> {
     
 	private static final Logger LOGGER = Logger.getLogger(JdbcLeaveBalanceRepository.class.getName());
     private final DatabaseConnectionManager connectionManager;
@@ -21,11 +23,11 @@ public class JdbcLeaveBalanceRepository implements ILeaveBalanceRepository {
     @Override
     public Optional<LeaveBalance> findByEmployeeIdAndLeaveType(String employeeId, String leaveType) {
         
-    	String sql = "SELECT lb.balance_id, lb.employee_id, lt.leave_type_name, " +
-                     "lb.balance_days, lb.last_updated " +
+    	String sql = "SELECT lb.balance_id, lb.emp_id, lt.leave_type_name, " +
+                     "lb.balance_days, lb.year, lb.last_updated " +
                      "FROM leave_balances lb " +
                      "JOIN leave_types lt ON lb.leave_type_id = lt.leave_type_id " +
-                     "WHERE lb.employee_id = ? AND lt.leave_type_name = ?";
+                     "WHERE LOWER(lb.emp_id) = LOWER(?) AND LOWER(lt.leave_type_name) = LOWER(?)";
         
         try (Connection conn = connectionManager.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -36,9 +38,10 @@ public class JdbcLeaveBalanceRepository implements ILeaveBalanceRepository {
                 if (rs.next()) {
                     return Optional.of(new LeaveBalance(
                         rs.getInt("balance_id"),
-                        rs.getString("employee_id"),
+                        rs.getString("emp_id"),
                         rs.getString("leave_type_name"),
                         rs.getFloat("balance_days"),
+                        rs.getInt("year"),
                         rs.getTimestamp("last_updated").toLocalDateTime()
                     ));
                 }
@@ -52,24 +55,26 @@ public class JdbcLeaveBalanceRepository implements ILeaveBalanceRepository {
 
     @Override
     public List<LeaveBalance> findByEmployeeId(String employeeId) {
-        List<LeaveBalance> balances = new ArrayList<>();
-        String sql = "SELECT lb.balance_id, lb.employee_id, lt.leave_type_name, " +
-                     "lb.balance_days, lb.last_updated " +
+        
+    	List<LeaveBalance> balances = new ArrayList<>();
+        String sql = "SELECT lb.balance_id, lb.emp_id, lt.leave_type_name, " +
+                     "lb.balance_days, lb.year, lb.last_updated " +
                      "FROM leave_balances lb " +
                      "JOIN leave_types lt ON lb.leave_type_id = lt.leave_type_id " +
-                     "WHERE lb.employee_id = ?";
+                     "WHERE lb.emp_id = ?";
         
         try (Connection conn = connectionManager.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
-            stmt.setString(1, employeeId);
+            stmt.setString(1, employeeId.toUpperCase());
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     balances.add(new LeaveBalance(
                         rs.getInt("balance_id"),
-                        rs.getString("employee_id"),
+                        rs.getString("emp_id"),
                         rs.getString("leave_type_name"),
                         rs.getFloat("balance_days"),
+                        rs.getInt("year"),
                         rs.getTimestamp("last_updated").toLocalDateTime()
                     ));
                 }
@@ -84,9 +89,10 @@ public class JdbcLeaveBalanceRepository implements ILeaveBalanceRepository {
     @Override
     public void save(LeaveBalance leaveBalance) {
     	
-        String sql = "INSERT INTO leave_balances (employee_id, leave_type_id, balance_days) " +
-                     "VALUES (?, (SELECT leave_type_id FROM leave_types WHERE leave_type_name = ?), ?) " +
-                     "ON DUPLICATE KEY UPDATE balance_days = ?, last_updated = CURRENT_TIMESTAMP";
+        String sql = "INSERT INTO leave_balances (emp_id, leave_type_id, balance_days, year) " +
+                "VALUES (?, (SELECT leave_type_id FROM leave_types WHERE LOWER(leave_type_name) = LOWER(?)), ?, ?) " +
+                "ON CONFLICT (emp_id, leave_type_id, year) DO UPDATE " + // if exists, update balance_days 
+                "SET balance_days = ?, last_updated = CURRENT_TIMESTAMP";
         
         try (Connection conn = connectionManager.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -94,7 +100,8 @@ public class JdbcLeaveBalanceRepository implements ILeaveBalanceRepository {
             stmt.setString(1, leaveBalance.getEmpId());
             stmt.setString(2, leaveBalance.getLeaveType());
             stmt.setFloat(3, leaveBalance.getBalanceDays());
-            stmt.setFloat(4, leaveBalance.getBalanceDays());
+            stmt.setInt(4, leaveBalance.getYear());
+            stmt.setFloat(5, leaveBalance.getBalanceDays());
             
             stmt.executeUpdate();
         } catch (SQLException e) {
@@ -106,7 +113,7 @@ public class JdbcLeaveBalanceRepository implements ILeaveBalanceRepository {
     public void updateBalance(String employeeId, String leaveType, float newBalance) {
         
     	String sql = "UPDATE leave_balances SET balance_days = ?, last_updated = CURRENT_TIMESTAMP " +
-                     "WHERE employee_id = ? AND leave_type_id = (SELECT leave_type_id FROM leave_types WHERE leave_type_name = ?)";
+                     "WHERE emp_id = ? AND leave_type_id = (SELECT leave_type_id FROM leave_types WHERE LOWER(leave_type_name) = LOWER(?))";
         
         try (Connection conn = connectionManager.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -120,4 +127,19 @@ public class JdbcLeaveBalanceRepository implements ILeaveBalanceRepository {
             LOGGER.severe("Error updating leave balance: " + e.getMessage());
         }
     }
+
+	@Override
+	public void saveAll(List<LeaveBalance> entities) throws DataPersistenceException {
+		
+		try (Connection conn = connectionManager.getConnection()) {
+			conn.setAutoCommit(false);
+			for (LeaveBalance entity : entities) {
+				save(entity);
+			}
+			conn.commit();
+		} catch (SQLException e) {
+			LOGGER.severe("Error saving leave balances: " + e.getMessage());
+			throw new DataPersistenceException("Error saving leave balances", e);
+		}
+	}
 }
