@@ -42,6 +42,8 @@ public class FileDataReader<T> implements IDataReader<T> {
                 futures.add(executor.submit(() -> processFile(path)));
             }
             
+            
+            
             for (Future<List<T>> future : futures) {
                 try {
                     results.addAll(future.get());

@@ -91,7 +91,6 @@ public class Main {
 		return directory;
 	}
 
-	
 	private static String getSchemaDirectory() {
 		String sep = File.separator;
 		String pathToSchema= System.getProperty("user.dir") + sep + "src" + sep + "main" + sep + "resources" + sep

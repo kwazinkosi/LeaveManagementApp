@@ -21,6 +21,7 @@ public class ConsoleUI implements UserInterface {
 	private static final int OPTION_APPROVE_LEAVE = 2;
 	private static final int OPTION_VIEW_BALANCES = 3;
 	private static final int OPTION_EXIT = 4;
+	private static final String QUIT_COMMAND ="q";
 
 	public ConsoleUI(LeaveService leaveService) {
 		this.leaveService = leaveService;
@@ -39,7 +40,7 @@ public class ConsoleUI implements UserInterface {
 			try {
 				String input = scanner.nextLine().trim();
 				int choice;
-
+				if(input.equalsIgnoreCase(QUIT_COMMAND)) shutdown();
 				try {
 					choice = Integer.parseInt(input);
 				} catch (NumberFormatException e) {
@@ -85,7 +86,7 @@ public class ConsoleUI implements UserInterface {
 		System.out.println("1. Request Leave");
 		System.out.println("2. Approve Leave");
 		System.out.println("3. View Leave Balances");
-		System.out.println("4. Exit");
+		System.out.println("4. Exit or q to quit");
 		System.out.print("Enter your choice: ");
 	}
 
@@ -100,12 +101,15 @@ public class ConsoleUI implements UserInterface {
 		// Get and validate End Date
 		LocalDate endDate = getValidDate("Enter End Date (YYYY-MM-DD): ", false, // isStartDate = false
 				startDate);
-
+		
 		// Employee ID Validation Loop
-		while (employeeId.isEmpty()) {
+		while (employeeId.isEmpty() && !employeeId.equals("q")) {
 			try {
 				System.out.print("\nEnter Employee ID: ");
 				employeeId = scanner.nextLine().trim();
+				if(employeeId.equalsIgnoreCase(QUIT_COMMAND)) {
+					shutdown();
+				}
 				ConsoleInputValidator.validateEmployeeId(employeeId);
 
 			} catch (ValidationException e) {
@@ -119,7 +123,9 @@ public class ConsoleUI implements UserInterface {
 			try {
 				System.out.print("Enter Leave Type (Sick/Casual/Paid): ");
 				leaveType = scanner.nextLine().trim().toUpperCase();
-
+				if(leaveType.equalsIgnoreCase(QUIT_COMMAND)) {
+					shutdown();
+				}
 				ConsoleInputValidator.validateLeaveType(leaveType);
 			} catch (ValidationException e) {
 				System.err.println("Error: " + e.getMessage());
@@ -138,10 +144,15 @@ public class ConsoleUI implements UserInterface {
 	}
 
 	private LocalDate getValidDate(String prompt, boolean isStartDate, LocalDate referenceDate) {
-		while (true) {
+		
+		String input ="";
+		while (true ) {
 			try {
 				System.out.print(prompt);
-				String input = scanner.nextLine().trim();
+				input = scanner.nextLine().trim();
+				if(input.equalsIgnoreCase(QUIT_COMMAND)) {
+					shutdown();
+				}
 				LocalDate date = ConsoleInputValidator.parseDate(input);
 
 				if (isStartDate) {
@@ -158,29 +169,29 @@ public class ConsoleUI implements UserInterface {
 	            System.out.flush();  // Ensure output is written
 	        }
 		}
+		
 	}
 
 	private void handleApproveLeave() {
-		int requestId = -1;
+		while (true) {
+            System.out.print("\nEnter Leave Request ID: ");
+            String input = scanner.nextLine().trim();
+            if (input.equalsIgnoreCase(QUIT_COMMAND)) {
+            	shutdown();
+            }
 
-		while (requestId == -1) {
-			try {
-				System.out.print("\nEnter Leave Request ID: ");
-				if (scanner.hasNextInt()) {
-					requestId = scanner.nextInt();
-					scanner.nextLine(); // Consume newline
-					leaveService.approveLeave(requestId);
-					System.out.println("Leave request approved successfully.");
-				} else {
-					System.err.println("Invalid input. Please enter a numeric ID.");
-					scanner.next(); // Clear invalid input
-				}
-			} catch (InvalidLeaveRequestException e) {
-				System.err.println("Error: " + e.getMessage()+"\n");
-				
-				requestId = -1; // Reset to force retry
-			}
-		}
+            try {
+                int requestId = Integer.parseInt(input);
+                leaveService.approveLeave(requestId);
+                System.out.println("Leave request approved successfully.");
+                return;
+            } catch (NumberFormatException e) {
+                System.err.println("Invalid input. Please enter a numeric ID.");
+            } catch (InvalidLeaveRequestException e) {
+                System.err.println("Error: " + e.getMessage() + "\n");
+            }
+        }
+		
 	}
 
 	private void handleViewBalances() {
@@ -190,8 +201,9 @@ public class ConsoleUI implements UserInterface {
 			try {
 				System.out.print("\nEnter Employee ID: ");
 				employeeId = scanner.nextLine().trim();
+				if(employeeId.equalsIgnoreCase(QUIT_COMMAND)) shutdown();
 				ConsoleInputValidator.validateEmployeeId(employeeId);
-
+				
 				List<LeaveBalance> balances = leaveService.getLeaveBalances(employeeId);
 				if (balances.isEmpty()) {
 					System.out.println("No leave balances found for this employee.");
@@ -226,7 +238,8 @@ public class ConsoleUI implements UserInterface {
 
 	@Override
 	public void shutdown() {
-		System.out.println("Shutting down console UI...");
+		System.out.println("Shutting down. restart application.");
 		scanner.close();
+		System.exit(0);
 	}
 }
